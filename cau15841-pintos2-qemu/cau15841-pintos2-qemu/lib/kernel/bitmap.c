@@ -4,6 +4,7 @@
 #include <round.h>
 #include <stdio.h>
 #include "threads/malloc.h"
+#include "threads/palloc.h"
 #ifdef FILESYS
 #include "filesys/file.h"
 #endif
@@ -302,9 +303,75 @@ bitmap_scan (const struct bitmap *b, size_t start, size_t cnt, bool value)
     {
       size_t last = b->bit_cnt - cnt;
       size_t i;
-      for (i = start; i <= last; i++)
-        if (!bitmap_contains (b, i, cnt, !value))
-          return i; 
+      size_t prev = 0;
+      // First fit
+      if (pallocator == 0){
+          for (i = start; i <= last; i++)
+            if (!bitmap_contains (b, i, cnt, !value))
+              return i;
+      }
+
+      // Next fit
+      else if (pallocator == 1){
+        for (i = prev; i <= last; i++){
+            if (!bitmap_contains (b, i, cnt, !value)){
+                prev = i;
+                return i;
+            }
+        }
+
+        for (i = start; i <= prev; i++){
+            if (!bitmap_contains (b, i, cnt, !value)){
+                prev = i;
+                return i;
+            }
+        }
+      }
+
+      // Best fit
+      else if (pallocator == 2){
+        size_t idx = UINT_MAX;
+        size_t prv_size = UINT_MAX;
+
+        for (i = start; i<=last; i++){
+            if(bitmap_test(b, i) == false){
+                size_t now_start = i;
+                while(now_start != last && bitmap_test(b, now_start) != true)
+                    now_start++;
+
+                now_start -= i;
+
+                if (cnt <= now_start && prv_size > now_start){
+                    idx = i;
+                    i += now_start;
+                }
+            }
+        }
+
+        if(idx == UINT_MAX)
+            return BITMAP_ERROR;
+        else
+            return idx;
+      }
+
+      else if (pallocator == 3){
+        int size_val = 1;
+        int idx = 0;
+
+        while(cnt > size_val)
+            size_val = size_val * 2;
+
+        while(idx <= last){
+            if(!bitmap_contains(b, idx, idx + size_val, !value)){
+                printf("할당 위치: %10d,    ", idx);
+                printf("요청 크기 : %10d\n", cnt);
+                return idx;
+            }
+            else
+                idx += size_val;
+        }
+        return BITMAP_ERROR;
+      }
     }
   return BITMAP_ERROR;
 }
