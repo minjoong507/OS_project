@@ -96,6 +96,9 @@ int main (void)
 	        init_ram_pages * PGSIZE / 1024);
 	printf ("Using page allocator %d\n", pallocator);
 
+	/* for check page size */
+	printf("default page size is %d\n", PGSIZE);
+
 	/* Initialize memory system. */
 	palloc_init (user_page_limit);
 	malloc_init ();
