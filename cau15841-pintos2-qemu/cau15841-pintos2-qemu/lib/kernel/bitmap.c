@@ -4,9 +4,10 @@
 #include <round.h>
 #include <stdio.h>
 #include "threads/malloc.h"
-#include "threads/palloc.h"
+#include "threads/palloc.h" // pallocater를 불러오기 위해 헤더파일 include
 #ifdef FILESYS
 #include "filesys/file.h"
+
 #endif
 
 /* Element type.
@@ -293,17 +294,19 @@ bitmap_all (const struct bitmap *b, size_t start, size_t cnt)
    consecutive bits in B at or after START that are all set to
    VALUE.
    If there is no such group, returns BITMAP_ERROR. */
+static size_t prev = 0;
 size_t
 bitmap_scan (const struct bitmap *b, size_t start, size_t cnt, bool value) 
 {
   ASSERT (b != NULL);
   ASSERT (start <= b->bit_cnt);
+  
 
   if (cnt <= b->bit_cnt) 
     {
       size_t last = b->bit_cnt - cnt;
       size_t i;
-      size_t prev = 0;
+
       // First fit
       if (pallocator == 0){
           for (i = start; i <= last; i++)
@@ -315,14 +318,14 @@ bitmap_scan (const struct bitmap *b, size_t start, size_t cnt, bool value)
       else if (pallocator == 1){
         for (i = prev; i <= last; i++){
             if (!bitmap_contains (b, i, cnt, !value)){
-                prev = i;
+                prev = i+cnt;
                 return i;
             }
         }
 
         for (i = start; i <= prev; i++){
             if (!bitmap_contains (b, i, cnt, !value)){
-                prev = i;
+                prev = i+cnt;
                 return i;
             }
         }
@@ -331,20 +334,21 @@ bitmap_scan (const struct bitmap *b, size_t start, size_t cnt, bool value)
       // Best fit
       else if (pallocator == 2){
         size_t idx = UINT_MAX;
-        size_t prv_size = UINT_MAX;
+        int prv_size = 512;
 
         for (i = start; i<=last; i++){
             if(bitmap_test(b, i) == false){
-                size_t now_start = i;
-                while(now_start != last && bitmap_test(b, now_start) != true)
+                int now_start = i;
+                while(now_start != last && bitmap_test(b, now_start) == false)
                     now_start++;
 
                 now_start -= i;
 
                 if (cnt <= now_start && prv_size > now_start){
                     idx = i;
-                    i += now_start;
+                    prv_size = now_start;
                 }
+                i += now_start;
             }
         }
 
@@ -354,6 +358,7 @@ bitmap_scan (const struct bitmap *b, size_t start, size_t cnt, bool value)
             return idx;
       }
 
+      // Buddy System
       else if (pallocator == 3){
         int size_val = 1;
         int idx = 0;
@@ -362,13 +367,14 @@ bitmap_scan (const struct bitmap *b, size_t start, size_t cnt, bool value)
             size_val = size_val * 2;
 
         while(idx <= last){
-            if(!bitmap_contains(b, idx, idx + size_val, !value)){
+            if(!bitmap_contains(b, idx, size_val, !value)){
                 printf("할당 위치: %10d,    ", idx);
                 printf("요청 크기 : %10d\n", cnt);
+                printf("size_val is %10d\n", size_val);
                 return idx;
             }
             else
-                idx += size_val;
+              idx += size_val;
         }
         return BITMAP_ERROR;
       }
