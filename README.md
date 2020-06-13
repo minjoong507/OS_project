@@ -12,7 +12,7 @@ cd threads
 make 
 cd build
 
- ../../utils/pintos -ma=0 alloctest
+ ../../utils/pintos alloctest
 ```
 
 
@@ -28,7 +28,7 @@ cd threads
 make 
 cd build
 
- ../../utils/pintos -ma=0 alloctest
+ ../../utils/pintos -ma={0/1/2/3} alloctest
 ```
 
 
